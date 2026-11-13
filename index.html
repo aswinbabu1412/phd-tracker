@@ -199,6 +199,36 @@ form.add { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) m
 .pill { font-family: var(--f-mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; border-radius: 3px; padding: 1px 6px; border: 1px solid var(--line); }
 .pill.night { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
+
+/* EP plan */
+.ep-now p { margin: 0 0 14px; display: grid; gap: 2px; }
+.ep-now strong { font-family: var(--f-display); font-stretch: 112%; font-size: 1.15rem; font-weight: 800; }
+.ep-routine { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+.ep-steps { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: .88rem; }
+.ep-steps b { font-family: var(--f-mono); font-weight: 500; font-size: .8rem; }
+.ep-note { margin: 8px 0 0; font-size: .82rem; color: var(--muted); }
+.ep-progress { display: grid; gap: 6px; margin-bottom: 8px; }
+.ep-progress .row { display: flex; justify-content: space-between; align-items: baseline; }
+.ep-month { border-top: 1px solid var(--line); }
+.ep-month summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: .95rem; list-style: none; }
+.ep-month summary::-webkit-details-marker { display: none; }
+.ep-month summary::before { content: "+"; font-family: var(--f-mono); color: var(--muted); width: 1em; }
+.ep-month[open] summary::before { content: "\2212"; }
+.ep-month summary span:first-of-type { flex: 1; }
+.wk { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+.wk.now { border-color: var(--ep); box-shadow: inset 0 0 0 1px var(--ep); }
+.wk.done .wk-t { color: var(--muted); text-decoration: line-through; }
+.wk-head { display: flex; gap: 10px; align-items: flex-start; }
+.wk-head input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--ep); flex: none; }
+.wk-head label { display: grid; gap: 2px; cursor: pointer; min-width: 0; }
+.wk-n { font-size: .72rem; color: var(--muted); }
+.wk-t { font-weight: 600; }
+.wk-note { margin: 6px 0 0 28px; font-size: .8rem; color: var(--warn); }
+.wk dl { margin: 8px 0 0 28px; display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 4px 10px; font-size: .86rem; }
+.wk dt { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.wk dd { margin: 0; min-width: 0; }
+@media (max-width: 480px) { .wk dl { margin-left: 0; grid-template-columns: minmax(0, 1fr); } .wk dt { padding-top: 6px; } }
+
 /* Template */
 ol.day { list-style: none; margin: 0; padding: 0; display: grid; }
 ol.day li { display: grid; grid-template-columns: 7.2em 10px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: .9rem; }
@@ -351,6 +381,23 @@ footer { font-size: .78rem; color: var(--muted); }
         <div class="field"><label for="m-due">Target</label><input type="month" id="m-due" min="2026-11" max="2027-12"></div>
         <div class="actions"><button class="btn" type="submit" id="m-save">Add</button><button class="btn ghost" type="button" id="m-cancel" hidden>Cancel</button></div>
       </form>
+    </section>
+
+    <section class="panel" aria-labelledby="h-ep">
+      <div class="panel-head"><h2 id="h-ep">EP plan, 16 weeks</h2><span class="hint">16 Nov 2026 to 7 Mar 2027</span></div>
+      <div class="ep-now" id="ep-now"></div>
+      <div class="ep-routine">
+        <span class="label">Every EP evening</span>
+        <ol class="ep-steps">
+          <li><b>19:00–20:15</b> Read this week's topic</li>
+          <li><b>20:30–21:15</b> Tracings: 3 or more intracardiac EGMs</li>
+          <li><b>21:15–22:00</b> Questions on the topic, note every miss</li>
+          <li><b>22:00–22:15</b> One-page summary, then log EP hours and EGMs</li>
+        </ol>
+        <p class="ep-note">Aim for one EP lab list with Nik each week. Locum days skip the evening block, so each week only needs four good sessions.</p>
+      </div>
+      <div class="ep-progress"><div class="row"><span class="label">Weeks done</span><span class="mono label" id="ep-count">0/16 done</span></div><div class="progress"><span id="ep-bar" style="width:0;background:var(--ep)"></span></div></div>
+      <div id="ep-months"></div>
     </section>
 
     <div class="two">
@@ -738,6 +785,78 @@ footer { font-size: .78rem; color: var(--muted); }
     });
   }
 
+  /* EP plan */
+  const EP_START = new Date(2026, 10, 16);
+  const EP_MONTHS = ["Foundations and the EP study", "Supraventricular tachycardia", "AF, ablation energy and mapping", "Ventricular arrhythmias and integration"];
+  const EP_PLAN = [
+    { t: "Cellular EP and mechanisms of arrhythmia", read: "Action potential and ion channels, refractoriness, automaticity, triggered activity and re-entry (Issa, mechanisms section)", lab: "Normal intracardiac EGMs: HRA, His, CS and RVA catheter positions", test: "Explain each mechanism with one clinical example" },
+    { t: "The baseline EP study", read: "Catheter positions, AH and HV intervals, programmed stimulation, sinus node and AV node function (Josephson, the EP study)", lab: "Measure AH, HV and SNRT on 5 recordings", test: "Decremental vs non-decremental conduction" },
+    { t: "Conduction disease in the EP lab", read: "Intra-Hisian and infra-Hisian block, bundle branch block, HV prolongation, pacing indications", lab: "Localise the level of block on 5 tracings", test: "Link to conduction system pacing: where LBBAP capture criteria come from" },
+    { t: "The manoeuvre toolkit", read: "Entrainment principles, para-Hisian pacing, VA linking, differential pacing, atrial and ventricular extrastimuli", lab: "Work each manoeuvre on paper against a known diagnosis", test: "Month 1 checkpoint: 50 questions, aim for 70%" },
+    { t: "AVNRT", read: "Dual AV node physiology, typical and atypical AVNRT, slow pathway ablation and junctional rhythm", lab: "AH jumps and echo beats on 5 studies", test: "Typical vs atypical AVNRT on ECG and EGM" },
+    { t: "Accessory pathways and WPW", note: "Christmas week, night shift on 25 Dec", read: "Pathway localisation from the ECG, orthodromic and antidromic AVRT, Mahaim fibres, risk stratification", lab: "Earliest VA activation on CS recordings", test: "Localise 10 pathways from delta-wave ECGs" },
+    { t: "SVT differential in the lab", read: "V-pacing during SVT, His-refractory PVC, VAV vs VAAV response, PPI minus TCL, atrial tachycardia", lab: "Diagnose 10 SVTs from manoeuvre tracings", test: "Write your own stepwise SVT algorithm" },
+    { t: "Atrial flutter", read: "CTI-dependent flutter, entrainment mapping, bidirectional block criteria, atypical left atrial flutter", lab: "Confirm CTI block from CS and halo recordings", test: "Month 2 checkpoint: 50 questions" },
+    { t: "AF mechanisms and PVI", read: "Triggers and substrate, PV anatomy, PV potentials, entrance and exit block", lab: "Separate far-field from PV potentials on circular catheter recordings", test: "PVI endpoints and how to prove them" },
+    { t: "Ablation energy", read: "RF biophysics and lesion formation, cryoballoon, pulsed field ablation, complications and their management", lab: "Review 3 complication cases: tamponade, PV stenosis, oesophageal injury", test: "Compare RF, cryo and PFA in one table" },
+    { t: "3D mapping, ICE and transseptal access", note: "Melbourne trip week, keep it light", read: "Activation, voltage and propagation maps, EnSite and CARTO principles, ICE, transseptal puncture", lab: "Interpret 3 activation maps", test: "Catch up on any missed week" },
+    { t: "Persistent AF and beyond PVI", read: "Posterior wall isolation, CFAE and rotor evidence, LAA occlusion, peri-procedural anticoagulation", lab: "Attend or watch one AF ablation", test: "Month 3 checkpoint: 50 questions" },
+    { t: "Idiopathic VT and PVCs", read: "Outflow tract, fascicular and papillary muscle VT, ECG localisation, pace mapping", lab: "Localise 10 PVCs from 12-lead ECGs", test: "RVOT vs LVOT origin criteria" },
+    { t: "Scar-related VT", read: "Substrate mapping, entrainment of VT (concealed fusion, PPI minus TCL, S-QRS), LAVA, epicardial access", lab: "Classify entrainment sites on 5 VT tracings", test: "Draw a re-entry circuit and label each site" },
+    { t: "Inherited arrhythmias, SCD and drugs", read: "Brugada, long QT, CPVT, ARVC, early repolarisation, ICD decisions, antiarrhythmic drugs (EHRA compendium)", lab: "Drug challenge and ECG pattern review", test: "When to ablate, when to implant, when to medicate" },
+    { t: "Integration and mock exam", read: "Re-read your two weakest weeks", lab: "Mixed tracing set, 20 cases", test: "Full mock exam, then book IBHRE CEPS or EHRA EP certification" }
+  ];
+  let epDone = {};
+  function epWeekNow() {
+    const d = Math.floor((today0() - EP_START) / 864e5);
+    if (d < 0) return 0;
+    const w = Math.floor(d / 7) + 1;
+    return w > 16 ? 17 : w;
+  }
+  const shortDate = (d) => d.getDate() + " " + MON[d.getMonth()];
+  function renderEP() {
+    const cur = epWeekNow();
+    const done = Object.keys(epDone).length;
+    $("ep-count").textContent = done + "/16 done";
+    $("ep-bar").style.width = (done / 16) * 100 + "%";
+    const nowBox = $("ep-now"); nowBox.innerHTML = "";
+    const p = el("p");
+    if (cur === 0) { p.append(el("span", { class: "label" }, "Starts Monday 16 November"), el("strong", null, "Week 1: " + EP_PLAN[0].t)); }
+    else if (cur <= 16) { p.append(el("span", { class: "label" }, "This week, week " + cur + " of 16"), el("strong", null, EP_PLAN[cur - 1].t)); }
+    else { p.append(el("span", { class: "label" }, "Plan complete"), el("strong", null, "All 16 weeks done. Time to plan the next block.")); }
+    nowBox.append(p);
+    const box = $("ep-months");
+    const first = !box.children.length;
+    const openSet = new Set(Array.from(box.querySelectorAll("details[open]")).map((d) => d.dataset.m));
+    box.innerHTML = "";
+    EP_MONTHS.forEach((title, mi) => {
+      const det = el("details", { class: "ep-month" }); det.dataset.m = String(mi);
+      const isCur = cur >= mi * 4 + 1 && cur <= mi * 4 + 4;
+      if (first ? (isCur || (cur === 0 && mi === 0)) : openSet.has(String(mi))) det.open = true;
+      let mdone = 0; for (let j = 1; j <= 4; j++) if (epDone[mi * 4 + j]) mdone++;
+      const sum = el("summary");
+      sum.append(el("span", null, "Month " + (mi + 1) + ": " + title), el("span", { class: "mono label" }, mdone + "/4"));
+      det.append(sum);
+      for (let j = 0; j < 4; j++) {
+        const n = mi * 4 + j + 1, w = EP_PLAN[n - 1];
+        const st = new Date(EP_START); st.setDate(st.getDate() + (n - 1) * 7);
+        const en = new Date(st); en.setDate(en.getDate() + 6);
+        const card = el("div", { class: "wk" + (n === cur ? " now" : "") + (epDone[n] ? " done" : "") });
+        const head = el("div", { class: "wk-head" });
+        const cb = el("input", { type: "checkbox", id: "ep-w" + n }); cb.checked = !!epDone[n];
+        cb.addEventListener("change", () => { if (cb.checked) epDone[n] = true; else delete epDone[n]; persist(); renderEP(); });
+        const lab = el("label", { for: "ep-w" + n });
+        lab.append(el("span", { class: "mono wk-n" }, "Week " + n + " · " + shortDate(st) + " to " + shortDate(en)), el("span", { class: "wk-t" }, w.t));
+        head.append(cb, lab); card.append(head);
+        if (w.note) card.append(el("p", { class: "wk-note" }, w.note));
+        const dl = el("dl");
+        [["Read", w.read], ["Tracings", w.lab], ["Test", w.test]].forEach(([k, v]) => dl.append(el("dt", null, k), el("dd", null, v)));
+        card.append(dl); det.append(card);
+      }
+      box.append(det);
+    });
+  }
+
   const mins = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
   const blockName = (li) => li.querySelector(".what").firstChild.textContent.trim();
   function renderNow() {
@@ -759,6 +878,8 @@ footer { font-size: .78rem; color: var(--muted); }
     cur.classList.add("now");
     nowText.textContent = blockName(cur) + " until " + (cur.dataset.e === "24:00" ? "05:30" : cur.dataset.e);
     nextText.textContent = next ? "Next: " + blockName(next) + " at " + next.dataset.s : "Next: wake at 05:30";
+    const wk = epWeekNow();
+    if (cur.dataset.s === "19:00" && wk >= 1 && wk <= 16) nextText.textContent = "Week " + wk + ": " + EP_PLAN[wk - 1].t + " · " + nextText.textContent;
   }
 
   function renderAll() { renderHeader(); renderWeek(); renderChart(); renderHistory(); }
@@ -782,7 +903,7 @@ footer { font-size: .78rem; color: var(--muted); }
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
   function snapshot() {
-    return { app: "thesis-ep-tracker", version: 1, exportedAt: new Date().toISOString(), log: Object.fromEntries(logs), shifts: Object.fromEntries(shifts), milestones };
+    return { app: "thesis-ep-tracker", version: 1, exportedAt: new Date().toISOString(), log: Object.fromEntries(logs), shifts: Object.fromEntries(shifts), milestones, epDone };
   }
   function persist() {
     if (lsSet(KEY, JSON.stringify(snapshot()))) return true;
@@ -794,7 +915,9 @@ footer { font-size: .78rem; color: var(--muted); }
     const L = data.log && typeof data.log === "object" ? data.log : {};
     const S = data.shifts && typeof data.shifts === "object" ? data.shifts : {};
     const M = Array.isArray(data.milestones) ? data.milestones : [];
-    if (!Object.keys(L).length && !Object.keys(S).length && !M.length) throw new Error("empty");
+    const E = data.epDone && typeof data.epDone === "object" ? data.epDone : {};
+    if (!Object.keys(L).length && !Object.keys(S).length && !M.length && !Object.keys(E).length) throw new Error("empty");
+    Object.keys(E).forEach((k) => { const n = Number(k); if (n >= 1 && n <= 16 && E[k]) epDone[n] = true; });
     let nl = 0, ns = 0, nm = 0;
     Object.keys(L).forEach((k) => { if (DATE_RE.test(k) && L[k] && typeof L[k] === "object") { logs.set(k, L[k]); nl++; } });
     Object.keys(S).forEach((k) => {
@@ -826,7 +949,7 @@ footer { font-size: .78rem; color: var(--muted); }
     const age = Math.floor((Date.now() - new Date(last).getTime()) / 864e5);
     setConn(age > 7 ? "err" : "ok", txt + "backed up " + (age <= 0 ? "today" : age + " d ago"));
   }
-  function refresh() { renderShifts(); renderAll(); renderMilestones(); renderNow(); renderStatus(); }
+  function refresh() { renderShifts(); renderAll(); renderMilestones(); renderEP(); renderNow(); renderStatus(); }
   function markBackup(msg) { lsSet(BKEY, new Date().toISOString()); renderStatus(); toast(msg); }
   async function backup() {
     const text = JSON.stringify(snapshot(), null, 2);
