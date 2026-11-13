@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thesis &amp; EP Tracker</title>
+<meta name="theme-color" content="#15203a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tracker">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,600;112,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: ECG-paper header with countdowns, then a two-column working area (log | week), chart band, two milestone tracks, template + history. */
+:root {
+  --paper: #f5f6f9;
+  --card: #ffffff;
+  --ink: #15203a;
+  --muted: #5d6781;
+  --line: #dde1ea;
+  --grid-fine: rgba(200, 50, 60, .10);
+  --grid-bold: rgba(200, 50, 60, .22);
+  --accent: #c4313b;
+  --thesis: #1f3a68;
+  --ops: #8a9cc0;
+  --ep: #23787e;
+  --good: #2b7a4b;
+  --warn: #a8691a;
+  --bad: #b3333c;
+  --soft-good: #e4f1e8;
+  --soft-warn: #f7ecdb;
+  --soft-bad: #f8e3e4;
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0d1322; --card: #141c30; --ink: #e5e9f2; --muted: #98a2ba; --line: #253049;
+    --grid-fine: rgba(255, 110, 118, .07); --grid-bold: rgba(255, 110, 118, .16);
+    --accent: #ff6f78; --thesis: #8eb0ea; --ops: #4d5f86; --ep: #5cc3c8;
+    --good: #6fcf97; --warn: #e8b05a; --bad: #ff7a82;
+    --soft-good: #15301f; --soft-warn: #33270f; --soft-bad: #3a1a1e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0d1322; --card: #141c30; --ink: #e5e9f2; --muted: #98a2ba; --line: #253049;
+  --grid-fine: rgba(255, 110, 118, .07); --grid-bold: rgba(255, 110, 118, .16);
+  --accent: #ff6f78; --thesis: #8eb0ea; --ops: #4d5f86; --ep: #5cc3c8;
+  --good: #6fcf97; --warn: #e8b05a; --bad: #ff7a82;
+  --soft-good: #15301f; --soft-warn: #33270f; --soft-bad: #3a1a1e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); -webkit-text-size-adjust: 100%; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.status-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.status-row .actions { gap: 8px; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--f-display); font-stretch: 112%; text-wrap: balance; margin: 0; }
+h2 { font-size: 1.05rem; font-weight: 800; letter-spacing: .01em; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Header on ECG paper */
+header.strip {
+  border-bottom: 1px solid var(--line);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid-bold) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-bold) 1px, transparent 1px),
+    linear-gradient(var(--grid-fine) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
+  background-size: 25px 25px, 25px 25px, 5px 5px, 5px 5px;
+}
+header .wrap { padding-block: 28px 0; display: grid; gap: 20px; }
+.title-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; }
+h1 { font-size: clamp(1.7rem, 4.4vw, 2.6rem); font-weight: 800; line-height: 1.05; }
+.phase { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
+.phase b { color: var(--accent); font-weight: 600; }
+.counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.count { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+.count .big { font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: 2.1rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.count .big.red { color: var(--accent); }
+.count .sub { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+.trace { display: block; width: 100%; height: 46px; margin-top: 6px; }
+.trace path { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+
+main .wrap { padding-block: 24px 48px; display: grid; gap: 22px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px; min-width: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.panel-head .hint { font-size: .82rem; color: var(--muted); }
+.two { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 22px; }
+@media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+/* Status line */
+.status { font-size: .85rem; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status.ok .dot { background: var(--good); }
+.status.err .dot { background: var(--bad); }
+
+/* Log form */
+form.log { display: grid; gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: .78rem; color: var(--muted); font-weight: 500; }
+.field .tgt { font-family: var(--f-mono); font-size: .7rem; color: var(--muted); }
+input[type="date"], input[type="time"], input[type="number"], input[type="text"], input[type="month"], select, textarea {
+  width: 100%; min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; font-family: var(--f-mono); font-size: .92rem;
+}
+textarea { font-family: var(--f-body); resize: vertical; min-height: 44px; }
+.check { display: flex; align-items: center; gap: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--good); }
+.group-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.group-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn { background: var(--ink); color: var(--paper); border: 0; border-radius: 5px; padding: 9px 16px; font-weight: 600; cursor: pointer; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.sm { padding: 6px 12px; font-size: .85rem; }
+label.btn { display: inline-flex; align-items: center; }
+.vh:focus-visible + label, label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toast { font-size: .85rem; color: var(--good); }
+.toast.err { color: var(--bad); }
+.total-live { margin-left: auto; font-family: var(--f-mono); font-size: .85rem; color: var(--muted); }
+
+/* Week */
+.alert { border-radius: 6px; padding: 10px 12px; font-size: .88rem; margin-bottom: 14px; border: 1px solid transparent; }
+.alert.bad { background: var(--soft-bad); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 30%, transparent); }
+.alert.good { background: var(--soft-good); color: var(--good); border-color: color-mix(in srgb, var(--good) 30%, transparent); }
+.metrics { display: grid; gap: 12px; }
+.metric { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; }
+.metric .name { font-size: .9rem; }
+.metric .val { font-family: var(--f-mono); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.metric .val small { color: var(--muted); }
+.meter { grid-column: 1 / -1; height: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 999px; background: var(--good); }
+.meter span.warn { background: var(--warn); }
+.meter span.bad { background: var(--bad); }
+.streaks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: .8rem; background: var(--paper); }
+.chip b { font-family: var(--f-mono); font-weight: 500; }
+
+/* Chart */
+.chart-wrap { overflow-x: auto; }
+svg.chart { display: block; width: 100%; min-width: 560px; height: auto; }
+svg.chart text { font-family: var(--f-mono); font-size: 10px; fill: var(--muted); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* Milestones */
+.tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; }
+@media (max-width: 760px) { .tracks { grid-template-columns: minmax(0, 1fr); } }
+.track-head { display: grid; gap: 8px; margin-bottom: 10px; }
+.track-head .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.track-head h3 { font-size: .95rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.track-head h3 i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.progress { height: 8px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); overflow: hidden; }
+.progress span { display: block; height: 100%; }
+ul.ms { list-style: none; margin: 0; padding: 0; display: grid; }
+ul.ms li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); }
+ul.ms li:first-child { border-top: 0; }
+.st { border: 1px solid var(--line); background: var(--paper); border-radius: 4px; font-family: var(--f-mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; padding: 3px 6px; cursor: pointer; width: 64px; text-align: center; }
+.st.doing { border-color: var(--warn); color: var(--warn); background: var(--soft-warn); }
+.st.done { border-color: var(--good); color: var(--good); background: var(--soft-good); }
+.ms .t { font-size: .9rem; overflow-wrap: anywhere; }
+li.is-done .t { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.ms .due { font-family: var(--f-mono); font-size: .75rem; color: var(--muted); display: block; }
+.ms .due.late { color: var(--bad); }
+.ms .tools { display: flex; gap: 4px; }
+.icon-btn { background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted); font-size: .75rem; padding: 2px 6px; cursor: pointer; }
+.icon-btn:hover { border-color: var(--line); color: var(--ink); }
+.icon-btn.armed { color: var(--bad); border-color: var(--bad); }
+form.add { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line); align-items: end; }
+@media (max-width: 640px) { form.add { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } form.add .field:first-child { grid-column: 1 / -1; } }
+.empty { color: var(--muted); font-size: .88rem; padding: 10px 0; margin: 0; }
+.months { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+.month h3 { font-size: .85rem; font-weight: 800; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.month h3 span { font-family: var(--f-mono); font-weight: 400; color: var(--muted); font-size: .75rem; }
+.month ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.month li { display: grid; grid-template-columns: 6.6em auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: .85rem; padding: 3px 0; }
+.month li.past { opacity: .5; }
+.month li .d { font-family: var(--f-mono); font-size: .8rem; }
+.month li .n { color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+.month li .n.warn-c { color: var(--warn); }
+.pill { font-family: var(--f-mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; border-radius: 3px; padding: 1px 6px; border: 1px solid var(--line); }
+.pill.night { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* Template */
+ol.day { list-style: none; margin: 0; padding: 0; display: grid; }
+ol.day li { display: grid; grid-template-columns: 7.2em 10px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+ol.day li:first-child { border-top: 0; }
+ol.day li.now { background: color-mix(in srgb, var(--accent) 9%, transparent); margin-inline: -8px; padding-inline: 8px; border-radius: 4px; }
+ol.day li.now .time { color: var(--accent); font-weight: 500; }
+.now-strip { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+.now-strip .label { color: var(--accent); }
+.now-strip #now-text { font-family: var(--f-display); font-stretch: 112%; font-weight: 800; font-size: 1.1rem; }
+.now-strip #now-next { color: var(--muted); font-size: .88rem; }
+ol.day .time { font-family: var(--f-mono); font-size: .82rem; color: var(--muted); }
+ol.day .sw { width: 10px; height: 10px; border-radius: 2px; background: var(--line); align-self: center; }
+ol.day .what small { color: var(--muted); display: block; font-size: .8rem; }
+.rules { margin: 14px 0 0; padding-left: 18px; font-size: .86rem; color: var(--muted); display: grid; gap: 4px; }
+
+/* History */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .85rem; min-width: 640px; }
+th { text-align: left; font-weight: 600; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.note { font-family: var(--f-body); white-space: normal; max-width: 260px; color: var(--muted); }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--paper); }
+.ok-c { color: var(--good); } .bad-c { color: var(--bad); } .warn-c { color: var(--warn); }
+.shift-tag { font-size: .7rem; border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; }
+footer { font-size: .78rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .meter span, .progress span { transition: width .4s ease; } }
+</style>
+</head>
+<body>
+
+<header class="strip">
+  <div class="wrap">
+    <div class="title-row">
+      <div>
+        <div class="label">PhD by publication · UWA / RPH</div>
+        <h1>Thesis &amp; EP Tracker</h1>
+      </div>
+      <div class="phase" id="phase"><b>Phase 1</b> Thesis first · 75% PhD / 25% EP</div>
+    </div>
+    <div class="counts">
+      <div class="count"><div class="label">Thesis submission</div><div class="big red" id="c-thesis">–</div><div class="sub">days to 31 Aug 2027</div></div>
+      <div class="count"><div class="label">Return to UK</div><div class="big" id="c-uk">–</div><div class="sub">days to Oct 2027</div></div>
+      <div class="count"><div class="label">Days logged</div><div class="big" id="c-logged">0</div><div class="sub" id="c-logged-sub">since 3 Nov 2026</div></div>
+      <div class="count"><div class="label">EGM tracings</div><div class="big" id="c-egm">0</div><div class="sub">of 500 by Oct 2027</div></div>
+    </div>
+    <svg class="trace" viewBox="0 0 1000 46" preserveAspectRatio="none" aria-hidden="true"><path id="trace"></path></svg>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="status-row">
+      <div class="status" id="status"><span class="dot"></span><span id="status-text">Loading…</span></div>
+      <div class="actions">
+        <button class="btn ghost sm" id="export-btn" type="button">Back up</button>
+        <input type="file" id="import-file" class="vh" accept="application/json,.json">
+        <label class="btn ghost sm" for="import-file">Restore</label>
+      </div>
+    </div>
+
+    <section class="now-strip" aria-live="polite"><span class="label" id="now-label">Perth time</span><span id="now-text">Daily schedule</span><span id="now-next"></span></section>
+
+    <div class="two">
+      <section class="panel" aria-labelledby="h-log">
+        <div class="panel-head"><h2 id="h-log">Daily log</h2><span class="hint">Pick a past date to edit that day</span></div>
+        <form class="log" id="log-form" autocomplete="off">
+          <div class="fields">
+            <div class="field"><label for="f-date">Date</label><input type="date" id="f-date" required></div>
+            <div class="field"><label for="f-shift">Locum shift</label>
+              <select id="f-shift"><option value="none">None</option><option value="day">Day (12 h)</option><option value="night">Night (12 h)</option><option value="off">Half day off</option></select></div>
+          </div>
+          <div class="group-title">Body</div>
+          <div class="fields">
+            <div class="field"><label for="f-wake">Wake time</label><input type="time" id="f-wake" step="300"><span class="tgt">target ≤ 05:45</span></div>
+            <div class="field"><label for="f-sleep">Sleep (h)</label><input type="number" id="f-sleep" min="0" max="14" step="0.25" inputmode="decimal"><span class="tgt">target 6.75–7</span></div>
+            <div class="field"><label for="f-workout">Gym</label><label class="check" for="f-workout"><input type="checkbox" id="f-workout"> Gym to 07:05 done</label></div>
+          </div>
+          <div class="group-title">Work hours</div>
+          <div class="fields">
+            <div class="field"><label for="f-thesis">Thesis writing</label><input type="number" id="f-thesis" min="0" max="16" step="0.25" inputmode="decimal"><span class="tgt">target 5.0</span></div>
+            <div class="field"><label for="f-ops">PhD operations</label><input type="number" id="f-ops" min="0" max="16" step="0.25" inputmode="decimal"><span class="tgt">target 4.75</span></div>
+            <div class="field"><label for="f-ep">EP &amp; devices</label><input type="number" id="f-ep" min="0" max="16" step="0.25" inputmode="decimal"><span class="tgt">target 3.25</span></div>
+            <div class="field"><label for="f-egm">EGM tracings</label><input type="number" id="f-egm" min="0" max="200" step="1" inputmode="numeric"><span class="tgt">target 3+/day</span></div>
+          </div>
+          <div class="field"><label for="f-note">Note</label><textarea id="f-note" rows="2" placeholder="What moved today, what blocked you"></textarea></div>
+          <div class="actions">
+            <button type="submit" class="btn" id="save-btn">Save day</button>
+            <span class="toast" id="toast" role="status"></span>
+            <span class="total-live" id="total-live">0.00 h work</span>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="h-week">
+        <div class="panel-head"><h2 id="h-week">Last 7 days</h2><span class="hint" id="week-range"></span></div>
+        <div id="week-alert"></div>
+        <div class="metrics" id="metrics"></div>
+        <div class="streaks" id="streaks"></div>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="h-chart">
+      <div class="panel-head">
+        <h2 id="h-chart">Hours, last 14 days</h2>
+        <div class="legend"><span><i style="background:var(--thesis)"></i>Thesis</span><span><i style="background:var(--ops)"></i>PhD ops</span><span><i style="background:var(--ep)"></i>EP</span><span><i style="background:var(--accent);height:2px;vertical-align:3px"></i>13 h plan</span></div>
+      </div>
+      <div class="chart-wrap"><svg class="chart" id="chart" viewBox="0 0 720 230" role="img" aria-label="Stacked daily work hours for the last 14 days"></svg></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-shifts">
+      <div class="panel-head"><h2 id="h-shifts">Locum shifts</h2><span class="hint" id="shift-next">12 h shifts</span></div>
+      <div class="months" id="shift-months"><p class="empty">No shifts yet. Tap Restore and choose tracker-setup.json, or add a shift below.</p></div>
+      <form class="add" id="shift-form" autocomplete="off">
+        <div class="field"><label for="s-date">Add shift</label><input type="date" id="s-date" required></div>
+        <div class="field"><label for="s-type">Type</label><select id="s-type"><option value="day">Day</option><option value="night">Night</option></select></div>
+        <div class="field"><label for="s-note">Note</label><input type="text" id="s-note" maxlength="60" placeholder="Optional"></div>
+        <div class="actions"><button class="btn" type="submit">Add</button></div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="h-ms">
+      <div class="panel-head"><h2 id="h-ms">Milestones</h2><span class="hint">Tap a status to move it on. Target months are a starting plan.</span></div>
+      <div class="tracks">
+        <div>
+          <div class="track-head">
+            <div class="row"><h3><i style="background:var(--thesis)"></i>PhD and thesis</h3><span class="mono label" id="p-phd">0/0</span></div>
+            <div class="progress"><span id="bar-phd" style="width:0;background:var(--thesis)"></span></div>
+          </div>
+          <ul class="ms" id="ms-phd"><li class="empty" style="display:block">No milestones yet. Tap Restore and choose tracker-setup.json.</li></ul>
+        </div>
+        <div>
+          <div class="track-head">
+            <div class="row"><h3><i style="background:var(--ep)"></i>EP and devices</h3><span class="mono label" id="p-ep">0/0</span></div>
+            <div class="progress"><span id="bar-ep" style="width:0;background:var(--ep)"></span></div>
+          </div>
+          <ul class="ms" id="ms-ep"><li class="empty" style="display:block">No milestones yet. Tap Restore and choose tracker-setup.json.</li></ul>
+        </div>
+        <div>
+          <div class="track-head">
+            <div class="row"><h3><i style="background:var(--ops)"></i>Other papers and grants</h3><span class="mono label" id="p-other">0/0</span></div>
+            <div class="progress"><span id="bar-other" style="width:0;background:var(--ops)"></span></div>
+          </div>
+          <ul class="ms" id="ms-other"><li class="empty" style="display:block">No milestones yet. Tap Restore and choose tracker-setup.json.</li></ul>
+        </div>
+      </div>
+      <form class="add" id="add-form" autocomplete="off">
+        <div class="field"><label for="m-title" id="m-mode">Add milestone</label><input type="text" id="m-title" maxlength="140" placeholder="e.g. Submit concordance manuscript to EuroIntervention" required></div>
+        <div class="field"><label for="m-track">Track</label><select id="m-track"><option value="phd">PhD</option><option value="ep">EP</option><option value="other">Other papers and grants</option></select></div>
+        <div class="field"><label for="m-due">Target</label><input type="month" id="m-due" min="2026-11" max="2027-12"></div>
+        <div class="actions"><button class="btn" type="submit" id="m-save">Add</button><button class="btn ghost" type="button" id="m-cancel" hidden>Cancel</button></div>
+      </form>
+    </section>
+
+    <div class="two">
+      <section class="panel" aria-labelledby="h-tpl">
+        <div class="panel-head"><h2 id="h-tpl">Daily template</h2><span class="hint">Phase 1, to April 2027</span></div>
+        <ol class="day">
+          <li data-s="05:30" data-e="06:00"><span class="time">05:30–06:00</span><span class="sw" style="background:var(--accent)"></span><span class="what">Wake<small>Up by 05:45 at the latest. Coffee, no email, get to the gym</small></span></li>
+          <li data-s="06:00" data-e="07:05"><span class="time">06:00–07:05</span><span class="sw" style="background:var(--good)"></span><span class="what">Gym<small>Fixed. Start 06:00 or 06:15, finish 07:05</small></span></li>
+          <li data-s="07:05" data-e="07:30"><span class="time">07:05–07:30</span><span class="sw"></span><span class="what">Shower, breakfast</span></li>
+          <li data-s="07:30" data-e="12:30"><span class="time">07:30–12:30</span><span class="sw" style="background:var(--thesis)"></span><span class="what">Thesis deep work<small>Writing only, phone in another room, one 15 min break</small></span></li>
+          <li data-s="12:30" data-e="13:15"><span class="time">12:30–13:15</span><span class="sw"></span><span class="what">Lunch, walk</span></li>
+          <li data-s="13:15" data-e="18:00"><span class="time">13:15–18:00</span><span class="sw" style="background:var(--ops)"></span><span class="what">PhD operations<small>Analysis, MicroSTREAM recruitment, revisions, email, meetings</small></span></li>
+          <li data-s="18:00" data-e="19:00"><span class="time">18:00–19:00</span><span class="sw"></span><span class="what">Dinner, proper break</span></li>
+          <li data-s="19:00" data-e="22:15"><span class="time">19:00–22:15</span><span class="sw" style="background:var(--ep)"></span><span class="what">EP and devices<small>Reading block, then EGM tracings</small></span></li>
+          <li data-s="22:15" data-e="22:45"><span class="time">22:15–22:45</span><span class="sw"></span><span class="what">Wind down<small>Plan tomorrow's first writing task</small></span></li>
+          <li data-s="22:45" data-e="24:00"><span class="time">22:45</span><span class="sw" style="background:var(--accent)"></span><span class="what">Lights out<small>6 h 45 to 7 h sleep</small></span></li>
+        </ol>
+        <ul class="rules">
+          <li>The gym block does not move. If the morning slips, the writing block starts later.</li>
+          <li>Sunday afternoon is off, log it as "Half day off".</li>
+          <li>Locum days drop out of the averages, so a shift never counts as a missed day.</li>
+          <li>Sleep under 6 h on 3 of 7 nights: cut the evening block, keep the sleep.</li>
+          <li>May to August 2027: about 50/50 while the thesis is finalised. After submission: EP first.</li>
+        </ul>
+      </section>
+
+      <section class="panel" aria-labelledby="h-hist">
+        <div class="panel-head"><h2 id="h-hist">History</h2><span class="hint">Tap a row to edit it</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Wake</th><th>Sleep</th><th>Gym</th><th>Thesis</th><th>Ops</th><th>EP</th><th>Total</th><th>Note</th></tr></thead>
+            <tbody id="hist"><tr><td colspan="9" class="note">No days logged yet. Fill in the daily log above and press Save day.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer>Plan: 13 h work, gym 06:00 to 07:05, 6.75–7 h sleep. All times and dates are Perth time, whatever time zone your device is in. Entries are saved on this device only. Tap Back up once a week and keep the file in iCloud Drive.</footer>
+  </div>
+</main>
+
+<script>
+(function () {
+  const T = { thesis: 5, ops: 4.75, ep: 3.25, sleep: 6.75, wake: "05:45", egmGoal: 500 };
+  const SUBMIT = new Date(2027, 7, 31);
+  const PHASE3 = new Date(2027, 8, 1);
+  const RETURN = new Date(2027, 9, 1);
+  const PHASE2 = new Date(2027, 4, 1);
+  const START = "2026-11-03";
+  const logs = new Map();
+  const shifts = new Map();
+  let milestones = [];
+  let editingId = null;
+
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, "0");
+  const ymd = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const PERTH = new Intl.DateTimeFormat("en-GB", { timeZone: "Australia/Perth", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", weekday: "short" });
+  const perthParts = () => { const o = {}; PERTH.formatToParts(new Date()).forEach((x) => { o[x.type] = x.value; }); return { y: +o.year, mo: +o.month, d: +o.day, h: +o.hour % 24, min: +o.minute, dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(o.weekday) }; };
+  const today0 = () => { const p = perthParts(); return new Date(p.y, p.mo - 1, p.d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const daysTo = (d) => Math.max(0, Math.round((d - today0()) / 864e5));
+  const num = (v) => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+  const fmt = (n, dp = 2) => (Math.round(n * 100) / 100).toFixed(dp);
+  const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const nice = (s) => { const d = parse(s); return DOW[d.getDay()] + " " + d.getDate() + " " + MON[d.getMonth()]; };
+  const monthLabel = (s) => { if (!s) return "No target"; const [y, m] = s.split("-").map(Number); return MON[m - 1] + " " + y; };
+  const total = (e) => num(e.thesis) + num(e.ops) + num(e.ep);
+  const isShift = (e) => e && (e.shift === "day" || e.shift === "night");
+  const shiftOn = (k, e) => (e && e.shift && e.shift !== "none") ? e.shift : (shifts.get(k) || {}).type || "none";
+  const isShiftDay = (k, e) => { const s = shiftOn(k, e); return s === "day" || s === "night"; };
+
+  function el(tag, attrs, text) {
+    const n = document.createElement(tag);
+    if (attrs) for (const k in attrs) { if (k === "class") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* Header */
+  function drawTrace() {
+    let d = "M0 30", x = 0;
+    while (x < 1000) {
+      d += " L" + (x + 40) + " 30 L" + (x + 48) + " 26 L" + (x + 56) + " 30 L" + (x + 64) + " 30 L" + (x + 68) + " 34 L" + (x + 73) + " 4 L" + (x + 78) + " 40 L" + (x + 83) + " 30 L" + (x + 100) + " 30 L" + (x + 112) + " 23 L" + (x + 124) + " 30";
+      x += 150;
+    }
+    $("trace").setAttribute("d", d + " L1000 30");
+  }
+  function renderHeader() {
+    $("c-thesis").textContent = daysTo(SUBMIT);
+    $("c-uk").textContent = daysTo(RETURN);
+    if (today0() >= PHASE3) $("phase").innerHTML = "<b>Phase 3</b> Thesis submitted · EP first";
+    else if (today0() >= PHASE2) $("phase").innerHTML = "<b>Phase 2</b> Finalise thesis · 50% PhD / 50% EP";
+    $("c-logged").textContent = logs.size;
+    let egm = 0; logs.forEach((e) => { egm += num(e.egm); });
+    $("c-egm").textContent = egm;
+  }
+
+  /* Form */
+  const F = ["wake", "sleep", "thesis", "ops", "ep", "egm", "note", "shift"];
+  function fillForm(date) {
+    const e = logs.get(date) || {};
+    $("f-wake").value = e.wake || "";
+    $("f-sleep").value = e.sleep ?? "";
+    $("f-thesis").value = e.thesis ?? "";
+    $("f-ops").value = e.ops ?? "";
+    $("f-ep").value = e.ep ?? "";
+    $("f-egm").value = e.egm ?? "";
+    $("f-note").value = e.note || "";
+    $("f-shift").value = e.shift || shiftOn(date, null);
+    $("f-workout").checked = !!e.workout;
+    $("save-btn").textContent = logs.has(date) ? "Update day" : "Save day";
+    liveTotal();
+  }
+  function liveTotal() {
+    const t = num($("f-thesis").value) + num($("f-ops").value) + num($("f-ep").value);
+    $("total-live").textContent = fmt(t) + " h work";
+  }
+  ["f-thesis", "f-ops", "f-ep"].forEach((id) => $(id).addEventListener("input", liveTotal));
+  $("f-date").addEventListener("change", () => { if ($("f-date").value) fillForm($("f-date").value); });
+
+  let toastTimer;
+  function toast(msg, err) {
+    const t = $("toast"); t.textContent = msg; t.className = "toast" + (err ? " err" : "");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.textContent = ""; }, 4000);
+  }
+
+  $("log-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const date = $("f-date").value;
+    if (!date) return;
+    const body = {
+      date,
+      wake: $("f-wake").value || "",
+      sleep: num($("f-sleep").value),
+      workout: $("f-workout").checked,
+      thesis: num($("f-thesis").value),
+      ops: num($("f-ops").value),
+      ep: num($("f-ep").value),
+      egm: Math.round(num($("f-egm").value)),
+      shift: $("f-shift").value,
+      note: $("f-note").value.trim().slice(0, 1000),
+      updated: new Date().toISOString()
+    };
+    logs.set(date, body);
+    if (persist()) toast("Saved " + nice(date));
+    refresh(); fillForm(date);
+  });
+
+  /* Week summary */
+  function lastN(n) {
+    const out = []; const t = today0();
+    for (let i = n - 1; i >= 0; i--) { const k = ymd(addDays(t, -i)); out.push({ k, e: logs.get(k) }); }
+    return out;
+  }
+  function meterRow(name, valText, ratio, state) {
+    const m = el("div", { class: "metric" });
+    m.append(el("span", { class: "name" }, name));
+    const v = el("span", { class: "val" }); v.innerHTML = valText; m.append(v);
+    const bar = el("div", { class: "meter" }); const s = el("span", { class: state || "" });
+    s.style.width = Math.max(0, Math.min(1, ratio)) * 100 + "%"; bar.append(s); m.append(bar);
+    return m;
+  }
+  const stateFor = (r) => (r >= 0.9 ? "" : r >= 0.7 ? "warn" : "bad");
+
+  function renderWeek() {
+    const days = lastN(7);
+    $("week-range").textContent = nice(days[0].k) + " to " + nice(days[6].k);
+    const logged = days.filter((d) => d.e);
+    const work = logged.filter((d) => !isShiftDay(d.k, d.e) && d.e.shift !== "off");
+    const alertBox = $("week-alert"); alertBox.innerHTML = "";
+    const metrics = $("metrics"); metrics.innerHTML = "";
+    const streaks = $("streaks"); streaks.innerHTML = "";
+
+    if (!logged.length) {
+      metrics.append(el("p", { class: "empty" }, "Nothing logged in the last 7 days. Your sleep, wake, training and hours against plan will show here after the first saved day."));
+      return;
+    }
+    const sleepDays = logged.filter((d) => num(d.e.sleep) > 0);
+    const shortNights = sleepDays.filter((d) => num(d.e.sleep) < 6).length;
+    if (shortNights >= 3) alertBox.append(el("div", { class: "alert bad" }, shortNights + " nights under 6 h this week. Cut the evening EP block until sleep recovers, keep the morning writing block."));
+    else if (sleepDays.length >= 5 && shortNights === 0) alertBox.append(el("div", { class: "alert good" }, "No nights under 6 h this week."));
+
+    const avgSleep = sleepDays.length ? sleepDays.reduce((a, d) => a + num(d.e.sleep), 0) / sleepDays.length : 0;
+    metrics.append(meterRow("Sleep, average", fmt(avgSleep) + " h <small>/ " + T.sleep + "</small>", avgSleep / T.sleep, stateFor(avgSleep / T.sleep)));
+
+    const wakeDays = logged.filter((d) => d.e.wake);
+    const onTime = wakeDays.filter((d) => d.e.wake <= T.wake).length;
+    metrics.append(meterRow("Up by 05:45", onTime + " <small>/ " + wakeDays.length + " logged</small>", wakeDays.length ? onTime / wakeDays.length : 0, stateFor(wakeDays.length ? onTime / wakeDays.length : 0)));
+
+    const gym = logged.filter((d) => d.e.workout).length;
+    metrics.append(meterRow("Workouts", gym + " <small>/ 7</small>", gym / 6, stateFor(gym / 6)));
+
+    const n = work.length || 1;
+    const avg = (f) => work.reduce((a, d) => a + num(d.e[f]), 0) / n;
+    const a1 = avg("thesis"), a2 = avg("ops"), a3 = avg("ep");
+    const note = work.length ? "" : " <small>(no full work days)</small>";
+    metrics.append(meterRow("Thesis, per work day", fmt(a1) + " h <small>/ " + T.thesis + "</small>" + note, a1 / T.thesis, stateFor(a1 / T.thesis)));
+    metrics.append(meterRow("PhD ops, per work day", fmt(a2) + " h <small>/ " + T.ops + "</small>", a2 / T.ops, stateFor(a2 / T.ops)));
+    metrics.append(meterRow("EP, per work day", fmt(a3) + " h <small>/ " + T.ep + "</small>", a3 / T.ep, stateFor(a3 / T.ep)));
+
+    const shiftCount = days.filter((d) => isShiftDay(d.k, d.e)).length;
+    const wkTotal = logged.reduce((a, d) => a + total(d.e), 0);
+    const egm7 = logged.reduce((a, d) => a + num(d.e.egm), 0);
+    const chip = (label, val) => { const c = el("span", { class: "chip" }, label + " "); c.append(el("b", null, val)); return c; };
+    streaks.append(chip("Training streak", streak((e) => e.workout) + " d"));
+    streaks.append(chip("05:45 streak", streak((e) => e.wake && e.wake <= T.wake) + " d"));
+    streaks.append(chip("Week hours", fmt(wkTotal, 1)));
+    streaks.append(chip("EGMs", String(egm7)));
+    if (shiftCount) streaks.append(chip("Locum shifts", String(shiftCount)));
+  }
+  function streak(test) {
+    let t = today0(), c = 0;
+    if (!logs.get(ymd(t))) t = addDays(t, -1);
+    for (;;) {
+      const k = ymd(t), e = logs.get(k), sh = isShiftDay(k, e);
+      if ((e && test(e)) || sh) { if (!sh) c++; t = addDays(t, -1); } else break;
+    }
+    return c;
+  }
+
+  /* Shifts */
+  function renderShifts() {
+    const box = $("shift-months"); box.innerHTML = "";
+    const keys = Array.from(shifts.keys()).sort();
+    const t = ymd(today0());
+    const next = keys.find((k) => k >= t);
+    if (next) {
+      const s = shifts.get(next); const n = daysTo(parse(next));
+      $("shift-next").textContent = "Next: " + nice(next) + " " + s.type + (n === 0 ? " (today)" : " · in " + n + " d");
+    } else $("shift-next").textContent = "No upcoming shifts";
+    if (!keys.length) { box.append(el("p", { class: "empty" }, "No shifts on the roster. Add one below.")); return; }
+    const byMonth = new Map();
+    keys.forEach((k) => { const m = k.slice(0, 7); if (!byMonth.has(m)) byMonth.set(m, []); byMonth.get(m).push(k); });
+    byMonth.forEach((list, m) => {
+      const wrap = el("div", { class: "month" });
+      const h = el("h3", null, monthLabel(m)); h.append(el("span", null, list.length + " shifts · " + list.length * 12 + " h")); wrap.append(h);
+      const ul = el("ul");
+      list.forEach((k) => {
+        const s = shifts.get(k);
+        const li = el("li", { class: k < t ? "past" : "" });
+        li.append(el("span", { class: "d" }, nice(k)), el("span", { class: "pill " + s.type }, s.type));
+        const after = ymd(addDays(parse(k), 1));
+        let note = s.note || "";
+        if (s.type === "night" && !shifts.has(after)) note = (note ? note + " · " : "") + "recovery " + DOW[parse(after).getDay()];
+        li.append(el("span", { class: "n" + (s.clash ? " warn-c" : "") }, note));
+        const del = el("button", { class: "icon-btn", type: "button", "aria-label": "Remove shift " + nice(k) }, "×");
+        del.addEventListener("click", () => {
+          if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Remove?"; setTimeout(() => { del.classList.remove("armed"); del.textContent = "×"; }, 3000); return; }
+          shifts.delete(k); persist(); refresh();
+        });
+        li.append(del); ul.append(li);
+      });
+      wrap.append(ul); box.append(wrap);
+    });
+  }
+  $("shift-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const date = $("s-date").value; if (!date) return;
+    shifts.set(date, { date, type: $("s-type").value, note: $("s-note").value.trim().slice(0, 60) });
+    persist(); $("shift-form").reset(); refresh();
+  });
+
+  /* Chart */
+  function renderChart() {
+    const svg = $("chart"); const NS = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const W = 720, H = 230, L = 34, R = 10, Tp = 12, B = 40, max = 16;
+    const ih = H - Tp - B, iw = W - L - R;
+    const y = (v) => Tp + ih - (v / max) * ih;
+    const mk = (tag, a) => { const n = document.createElementNS(NS, tag); for (const k in a) n.setAttribute(k, a[k]); svg.append(n); return n; };
+    [0, 4, 8, 12, 16].forEach((v) => {
+      mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 });
+      const t = mk("text", { x: L - 6, y: y(v) + 3, "text-anchor": "end" }); t.textContent = v + "h";
+    });
+    const days = lastN(14); const slot = iw / 14; const bw = slot * 0.56;
+    days.forEach((d, i) => {
+      const x = L + i * slot + (slot - bw) / 2;
+      let acc = 0;
+      if (d.e) {
+        [["thesis", "var(--thesis)"], ["ops", "var(--ops)"], ["ep", "var(--ep)"]].forEach(([f, c]) => {
+          const v = num(d.e[f]); if (v <= 0) return;
+          mk("rect", { x, y: y(acc + Math.min(v, max - acc)), width: bw, height: Math.max(0, y(acc) - y(acc + Math.min(v, max - acc))), fill: c });
+          acc += v;
+        });
+        if (acc > 0) { const t = mk("text", { x: x + bw / 2, y: y(Math.min(acc, max)) - 4, "text-anchor": "middle" }); t.textContent = fmt(acc, 1); }
+      }
+      const dd = parse(d.k);
+      const lt = mk("text", { x: x + bw / 2, y: H - B + 15, "text-anchor": "middle" }); lt.textContent = DOW[dd.getDay()].slice(0, 2);
+      const lt2 = mk("text", { x: x + bw / 2, y: H - B + 27, "text-anchor": "middle" }); lt2.textContent = dd.getDate();
+      if (isShiftDay(d.k, d.e)) { const s = mk("text", { x: x + bw / 2, y: y(0) - 4, "text-anchor": "middle", fill: "var(--warn)" }); s.textContent = shiftOn(d.k, d.e) === "night" ? "N" : "D"; }
+    });
+    mk("line", { x1: L, x2: W - R, y1: y(13), y2: y(13), stroke: "var(--accent)", "stroke-width": 1.5, "stroke-dasharray": "5 4" });
+  }
+
+  /* Milestones */
+  const NEXT = { todo: "doing", doing: "done", done: "todo" };
+  const LABEL = { todo: "To do", doing: "Active", done: "Done" };
+  function renderMilestones() {
+    const curMonth = ymd(today0()).slice(0, 7);
+    ["phd", "ep", "other"].forEach((track) => {
+      const list = $("ms-" + track); list.innerHTML = "";
+      const items = milestones.filter((m) => m.track === track).sort((a, b) => {
+        const ad = a.status === "done", bd = b.status === "done";
+        if (ad !== bd) return ad ? 1 : -1;
+        return (a.due || "9999").localeCompare(b.due || "9999") || (a.order || 0) - (b.order || 0);
+      });
+      const done = items.filter((m) => m.status === "done").length;
+      $("p-" + track).textContent = done + "/" + items.length + " done";
+      $("bar-" + track).style.width = items.length ? (done / items.length) * 100 + "%" : "0";
+      if (!items.length) { list.append(el("li", { class: "empty", style: "display:block" }, "No milestones yet. Add one below.")); return; }
+      items.forEach((m) => {
+        const li = el("li", { class: m.status === "done" ? "is-done" : "" });
+        const st = el("button", { class: "st " + m.status, type: "button", title: "Move to " + LABEL[NEXT[m.status]] }, LABEL[m.status]);
+        st.addEventListener("click", () => setStatus(m, NEXT[m.status]));
+        const mid = el("div");
+        mid.append(el("div", { class: "t" }, m.title));
+        const late = m.status !== "done" && m.due && m.due < curMonth;
+        mid.append(el("span", { class: "due" + (late ? " late" : "") }, monthLabel(m.due) + (late ? " · overdue" : "")));
+        const tools = el("div", { class: "tools" });
+        const ed = el("button", { class: "icon-btn", type: "button", "aria-label": "Edit " + m.title }, "Edit");
+        ed.addEventListener("click", () => startEdit(m));
+        const del = el("button", { class: "icon-btn", type: "button", "aria-label": "Delete " + m.title }, "Delete");
+        del.addEventListener("click", () => {
+          if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Confirm"; setTimeout(() => { del.classList.remove("armed"); del.textContent = "Delete"; }, 3000); return; }
+          removeMilestone(m);
+        });
+        tools.append(ed, del);
+        li.append(st, mid, tools); list.append(li);
+      });
+    });
+  }
+  async function setStatus(m, status) {
+    m.status = status; m.updated = new Date().toISOString();
+    persist(); refresh();
+  }
+  async function removeMilestone(m) {
+    milestones = milestones.filter((x) => x.id !== m.id);
+    persist(); refresh();
+  }
+  function startEdit(m) {
+    editingId = m.id;
+    $("m-title").value = m.title; $("m-track").value = m.track; $("m-due").value = m.due || "";
+    $("m-mode").textContent = "Edit milestone"; $("m-save").textContent = "Save"; $("m-cancel").hidden = false;
+    $("m-title").focus();
+  }
+  function endEdit() {
+    editingId = null; $("add-form").reset();
+    $("m-mode").textContent = "Add milestone"; $("m-save").textContent = "Add"; $("m-cancel").hidden = true;
+  }
+  $("m-cancel").addEventListener("click", endEdit);
+  $("add-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const title = $("m-title").value.trim(); if (!title) return;
+    const data = { title: title.slice(0, 140), track: $("m-track").value, due: $("m-due").value || "", updated: new Date().toISOString() };
+    const existing = editingId && milestones.find((x) => x.id === editingId);
+    if (existing) Object.assign(existing, data);
+    else milestones.push(Object.assign({ id: "m" + Date.now().toString(36), status: "todo", order: Date.now() }, data));
+    persist(); endEdit(); refresh();
+  });
+
+  /* History */
+  function renderHistory() {
+    const body = $("hist"); body.innerHTML = "";
+    const keys = Array.from(logs.keys()).sort().reverse().slice(0, 45);
+    if (!keys.length) {
+      const tr = el("tr"); const td = el("td", { colspan: 9, class: "note" }, "No days logged yet. Fill in the daily log above and press Save day.");
+      tr.append(td); body.append(tr); return;
+    }
+    keys.forEach((k) => {
+      const e = logs.get(k); const tr = el("tr", { tabindex: "0" });
+      const dcell = el("td", null, nice(k));
+      if (e.shift && e.shift !== "none") { dcell.append(" "); dcell.append(el("span", { class: "shift-tag" }, e.shift === "off" ? "off" : e.shift === "night" ? "night" : "locum")); }
+      const wake = el("td", { class: e.wake ? (e.wake <= T.wake ? "ok-c" : "warn-c") : "" }, e.wake || "–");
+      const sl = num(e.sleep);
+      const sleep = el("td", { class: sl ? (sl < 6 ? "bad-c" : sl >= T.sleep ? "ok-c" : "warn-c") : "" }, sl ? fmt(sl) : "–");
+      const gym = el("td", { class: e.workout ? "ok-c" : "" }, e.workout ? "yes" : "–");
+      tr.append(dcell, wake, sleep, gym, el("td", null, fmt(num(e.thesis))), el("td", null, fmt(num(e.ops))), el("td", null, fmt(num(e.ep))), el("td", null, fmt(total(e))), el("td", { class: "note" }, e.note || ""));
+      const open = () => { $("f-date").value = k; fillForm(k); $("log-form").scrollIntoView({ behavior: "smooth", block: "start" }); };
+      tr.addEventListener("click", open);
+      tr.addEventListener("keydown", (ev) => { if (ev.key === "Enter") open(); });
+      body.append(tr);
+    });
+  }
+
+  const mins = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  const blockName = (li) => li.querySelector(".what").firstChild.textContent.trim();
+  function renderNow() {
+    const p = perthParts(); const m = p.h * 60 + p.min;
+    $("now-label").textContent = "Perth " + pad(p.h) + ":" + pad(p.min);
+    const items = Array.from(document.querySelectorAll("ol.day li[data-s]"));
+    let cur = null, next = null;
+    items.forEach((li) => {
+      li.classList.remove("now");
+      const s = mins(li.dataset.s), e = mins(li.dataset.e);
+      if (m >= s && m < e) cur = li;
+      if (!next && s > m) next = li;
+    });
+    const sh = shifts.get(ymd(today0()));
+    const nowText = $("now-text"), nextText = $("now-next");
+    if (sh) { nowText.textContent = "Locum " + sh.type + " shift today"; nextText.textContent = "Schedule paused. Log the shift and protect sleep."; return; }
+    if (p.dow === 0 && m >= mins("13:15") && m < mins("22:45")) { nowText.textContent = "Sunday afternoon off"; nextText.textContent = "Lights out at 22:45"; return; }
+    if (!cur) { nowText.textContent = "Sleep"; nextText.textContent = "Up 05:30 to 05:45, gym from 06:00"; return; }
+    cur.classList.add("now");
+    nowText.textContent = blockName(cur) + " until " + (cur.dataset.e === "24:00" ? "05:30" : cur.dataset.e);
+    nextText.textContent = next ? "Next: " + blockName(next) + " at " + next.dataset.s : "Next: wake at 05:30";
+  }
+
+  function renderAll() { renderHeader(); renderWeek(); renderChart(); renderHistory(); }
+
+  function setConn(state, text) { const s = $("status"); s.className = "status " + (state || ""); $("status-text").textContent = text; }
+
+  /* Boot */
+  drawTrace();
+  $("f-date").value = ymd(today0());
+  $("f-date").max = ymd(addDays(today0(), 1));
+  fillForm($("f-date").value);
+  renderAll();
+  renderMilestones();
+  renderNow();
+  setInterval(renderNow, 60000);
+
+  /* Storage on this device */
+  const KEY = "thesis-ep-tracker.v1";
+  const BKEY = KEY + ".lastBackup";
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function snapshot() {
+    return { app: "thesis-ep-tracker", version: 1, exportedAt: new Date().toISOString(), log: Object.fromEntries(logs), shifts: Object.fromEntries(shifts), milestones };
+  }
+  function persist() {
+    if (lsSet(KEY, JSON.stringify(snapshot()))) return true;
+    toast("Couldn't save on this device. Private browsing or full storage can block it.", true);
+    return false;
+  }
+  function merge(data) {
+    if (!data || typeof data !== "object") throw new Error("not a backup");
+    const L = data.log && typeof data.log === "object" ? data.log : {};
+    const S = data.shifts && typeof data.shifts === "object" ? data.shifts : {};
+    const M = Array.isArray(data.milestones) ? data.milestones : [];
+    if (!Object.keys(L).length && !Object.keys(S).length && !M.length) throw new Error("empty");
+    let nl = 0, ns = 0, nm = 0;
+    Object.keys(L).forEach((k) => { if (DATE_RE.test(k) && L[k] && typeof L[k] === "object") { logs.set(k, L[k]); nl++; } });
+    Object.keys(S).forEach((k) => {
+      const v = S[k];
+      if (DATE_RE.test(k) && v && (v.type === "day" || v.type === "night")) { shifts.set(k, { date: k, type: v.type, note: String(v.note || "").slice(0, 60), clash: !!v.clash }); ns++; }
+    });
+    M.forEach((m, i) => {
+      if (!m || typeof m.title !== "string") return;
+      const clean = {
+        id: String(m.id || ("m" + Date.now().toString(36) + i)).slice(0, 40),
+        title: m.title.slice(0, 140),
+        track: ["ep", "other"].indexOf(m.track) >= 0 ? m.track : "phd",
+        due: typeof m.due === "string" ? m.due.slice(0, 7) : "",
+        status: ["todo", "doing", "done"].indexOf(m.status) >= 0 ? m.status : "todo",
+        order: Number(m.order) || 0
+      };
+      const at = milestones.findIndex((x) => x.id === clean.id);
+      if (at >= 0 && data.keepStatus === true) clean.status = milestones[at].status;
+      if (at >= 0) milestones[at] = clean; else milestones.push(clean);
+      nm++;
+    });
+    return { nl, ns, nm };
+  }
+  function renderStatus() {
+    if (!logs.size && !shifts.size && !milestones.length) { setConn("err", "Nothing saved on this device yet. Tap Restore and choose tracker-setup.json."); return; }
+    const txt = "Saved on this device · " + logs.size + " days logged · ";
+    const last = lsGet(BKEY);
+    if (!last) { setConn("err", txt + "no backup yet"); return; }
+    const age = Math.floor((Date.now() - new Date(last).getTime()) / 864e5);
+    setConn(age > 7 ? "err" : "ok", txt + "backed up " + (age <= 0 ? "today" : age + " d ago"));
+  }
+  function refresh() { renderShifts(); renderAll(); renderMilestones(); renderNow(); renderStatus(); }
+  function markBackup(msg) { lsSet(BKEY, new Date().toISOString()); renderStatus(); toast(msg); }
+  async function backup() {
+    const text = JSON.stringify(snapshot(), null, 2);
+    const name = "tracker-backup-" + ymd(today0()) + ".json";
+    let file = null;
+    try { file = new File([text], name, { type: "application/json" }); } catch (e) { file = null; }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); markBackup("Backup shared. Save it to Files or iCloud Drive."); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const url = URL.createObjectURL(file || new Blob([text], { type: "application/json" }));
+    const a = document.createElement("a"); a.href = url; a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    markBackup("Backup saved as " + name);
+  }
+  $("export-btn").addEventListener("click", backup);
+  $("import-file").addEventListener("change", (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const res = merge(JSON.parse(String(r.result)));
+        persist(); refresh(); fillForm($("f-date").value);
+        toast("Restored " + res.nl + " days, " + res.ns + " shifts, " + res.nm + " milestones");
+      } catch (e) {
+        toast("That file isn't a tracker backup. Choose tracker-setup.json or a tracker-backup file.", true);
+      }
+      ev.target.value = "";
+    };
+    r.onerror = () => { toast("Couldn't read that file.", true); ev.target.value = ""; };
+    r.readAsText(f);
+  });
+
+  try { const raw = lsGet(KEY); if (raw) merge(JSON.parse(raw)); }
+  catch (e) { toast("Saved data on this device couldn't be read. Restore your last backup.", true); }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  refresh();
+  fillForm($("f-date").value);
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
