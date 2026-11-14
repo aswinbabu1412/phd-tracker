@@ -1,5 +1,5 @@
 // Offline support. Bump CACHE when you upload a new version of index.html.
-const CACHE = "tracker-v3";
+const CACHE = "tracker-v4";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
